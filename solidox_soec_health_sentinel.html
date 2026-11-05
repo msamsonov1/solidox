@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SolidOx: Lunar/Martian MOXIE SOEC Health Sentinel</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- MathJax v3 Configuration -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #03050a;
+      color: #e2e8f0;
+    }
+    
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    
+    .formula-box {
+      background-color: #050814;
+      border: 1px solid #1e293b;
+      border-radius: 0.5rem;
+      padding: 0.85rem;
+      color: #38bdf8;
+      overflow-x: auto;
+      font-size: 0.92rem;
+    }
+
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090d16;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+
+    .glow-cyan {
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.25);
+    }
+    .glow-red {
+      box-shadow: 0 0 18px rgba(239, 68, 68, 0.35);
+    }
+    .glow-emerald {
+      box-shadow: 0 0 15px rgba(16, 185, 129, 0.25);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#03050a] text-slate-100 selection:bg-cyan-500 selection:text-black">
+
+  <!-- TOP HEADER / STATUS BAR -->
+  <header class="border-b border-slate-800/80 bg-[#060a14]/90 backdrop-blur sticky top-0 z-50 px-4 lg:px-8 py-3">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="h-9 w-9 rounded-lg bg-cyan-950 border border-cyan-500/50 flex items-center justify-center text-cyan-400 glow-cyan">
+          <i data-lucide="flame" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-lg tracking-wider text-slate-100">SOLIDOX</span>
+            <span class="text-xs font-mono-code px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-700/50">v2.4-ISRU</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-amber-950/60 text-amber-300 border border-amber-800/40 hidden sm:inline-block">NASA STTR Focus</span>
+          </div>
+          <p class="text-xs text-slate-400">MOXIE SOEC Ceramic Membrane Health & Coking Sentinel Observer</p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex items-center bg-slate-900/90 p-1 rounded-lg border border-slate-800 text-xs sm:text-sm font-medium">
+        <button id="tabBtnSim" onclick="switchTab('sim')" class="px-3.5 py-1.5 rounded-md transition-all flex items-center gap-2 bg-cyan-500 text-slate-950 font-semibold shadow">
+          <i data-lucide="activity" class="w-4 h-4"></i>
+          <span>Live Sentinel HUD</span>
+        </button>
+        <button id="tabBtnPhysics" onclick="switchTab('physics')" class="px-3.5 py-1.5 rounded-md transition-all flex items-center gap-2 text-slate-400 hover:text-slate-100">
+          <i data-lucide="atom" class="w-4 h-4"></i>
+          <span>Physics & Inversion</span>
+        </button>
+        <button id="tabBtnProposal" onclick="switchTab('proposal')" class="px-3.5 py-1.5 rounded-md transition-all flex items-center gap-2 text-slate-400 hover:text-slate-100">
+          <i data-lucide="file-text" class="w-4 h-4"></i>
+          <span>$225k NASA STTR</span>
+        </button>
+        <button id="tabBtnARR" onclick="switchTab('arr')" class="px-3.5 py-1.5 rounded-md transition-all flex items-center gap-2 text-slate-400 hover:text-slate-100">
+          <i data-lucide="trending-up" class="w-4 h-4"></i>
+          <span>Commercial ARR ($218M)</span>
+        </button>
+      </nav>
+
+      <!-- System Quick Badges -->
+      <div class="hidden xl:flex items-center gap-4 text-xs font-mono-code">
+        <div class="flex items-center gap-2 px-3 py-1 bg-slate-900 rounded border border-slate-800">
+          <span class="text-slate-400">STACK TEMP:</span>
+          <span id="quickTempDisplay" class="text-amber-400 font-semibold">800.0 °C</span>
+        </div>
+        <div class="flex items-center gap-2 px-3 py-1 bg-slate-900 rounded border border-slate-800">
+          <span class="text-slate-400">HEALTH:</span>
+          <span id="quickHealthBadge" class="text-emerald-400 font-semibold flex items-center gap-1">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> NOMINAL
+          </span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN VIEW CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 space-y-6">
+
+    <!-- TAB 1: LIVE SIMULATION & TELEMETRY HUD -->
+    <div id="viewSim" class="space-y-6">
+      
+      <!-- Top Overview Metrics Bar -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-4">
+        <div class="bg-slate-900/60 backdrop-blur border border-slate-800/80 rounded-xl p-3.5">
+          <div class="flex justify-between items-start text-xs text-slate-400 mb-1">
+            <span>TOTAL CHARGE ($Q$)</span>
+            <i data-lucide="zap" class="w-4 h-4 text-cyan-400"></i>
+          </div>
+          <div class="text-xl lg:text-2xl font-bold font-mono-code text-cyan-300" id="hudCharge">0.0 kC</div>
+          <div class="text-[11px] text-slate-500 mt-1">Dissociation Integral $\int I\,dt$</div>
+        </div>
+
+        <div class="bg-slate-900/60 backdrop-blur border border-slate-800/80 rounded-xl p-3.5">
+          <div class="flex justify-between items-start text-xs text-slate-400 mb-1">
+            <span>IONIC RESISTANCE ($R_{\text{cell}}$)</span>
+            <i data-lucide="gauge" class="w-4 h-4 text-amber-400"></i>
+          </div>
+          <div class="text-xl lg:text-2xl font-bold font-mono-code text-amber-300" id="hudResistance">0.420 $\Omega$</div>
+          <div class="text-[11px] text-slate-500 mt-1" id="hudDeltaR">Baseline offset: +0.00%</div>
+        </div>
+
+        <div class="bg-slate-900/60 backdrop-blur border border-slate-800/80 rounded-xl p-3.5">
+          <div class="flex justify-between items-start text-xs text-slate-400 mb-1">
+            <span>COKING SEVERITY INDEX</span>
+            <i data-lucide="skull" class="w-4 h-4 text-rose-400"></i>
+          </div>
+          <div class="text-xl lg:text-2xl font-bold font-mono-code text-emerald-400" id="hudCoking">0.0 %</div>
+          <div class="text-[11px] text-slate-500 mt-1" id="hudCokingState">Soot Thickness: 0 nm</div>
+        </div>
+
+        <div class="bg-slate-900/60 backdrop-blur border border-slate-800/80 rounded-xl p-3.5">
+          <div class="flex justify-between items-start text-xs text-slate-400 mb-1">
+            <span>O2 EXTRACTION RATE</span>
+            <i data-lucide="wind" class="w-4 h-4 text-emerald-400"></i>
+          </div>
+          <div class="text-xl lg:text-2xl font-bold font-mono-code text-emerald-300" id="hudO2Rate">5.97 g/hr</div>
+          <div class="text-[11px] text-slate-500 mt-1" id="hudO2Total">Total Yield: 0.00 g O2</div>
+        </div>
+      </div>
+
+      <!-- Main Interactive Workstation: Membrane Canvas + Phase Space -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Physical Membrane Microstructure Canvas (7 cols) -->
+        <div class="lg:col-span-7 bg-slate-900/50 backdrop-blur border border-slate-800/80 rounded-xl p-4 flex flex-col justify-between">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+              <h3 class="font-semibold text-sm text-slate-200">Solid Oxide YSZ Membrane Dynamics: Real-Time Microstructure</h3>
+            </div>
+            <div class="flex items-center gap-2 text-xs font-mono-code">
+              <span id="pulseStatusBadge" class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">INJECTOR: IDLE</span>
+              <span id="membraneStressBadge" class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/50">YSZ STRESS: NOMINAL</span>
+            </div>
+          </div>
+
+          <!-- The Canvas -->
+          <div class="relative w-full rounded-lg overflow-hidden border border-slate-800 bg-[#020408] h-[320px]">
+            <canvas id="membraneCanvas" class="w-full h-full block"></canvas>
+            
+            <!-- In-canvas Overlays -->
+            <div class="absolute top-2 left-3 pointer-events-none text-[11px] font-mono-code space-y-0.5 bg-black/60 p-2 rounded border border-slate-800/60 backdrop-blur">
+              <div class="text-cyan-400 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-cyan-400 inline-block"></span>
+                Cathode (-) : $2\text{CO}_2 + 4e^- \to 2\text{CO} + 2\text{O}^{2-}$
+              </div>
+              <div class="text-rose-400 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-rose-400 inline-block"></span>
+                Boudouard Side-Rxn : $2\text{CO} \rightleftharpoons \text{C}_{(\text{s})} + \text{CO}_2$ (Coking)
+              </div>
+              <div class="text-emerald-400 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>
+                Anode (+) : $2\text{O}^{2-} \to \text{O}_2 + 4e^-$ (Pure Oxygen)
+              </div>
+            </div>
+
+            <div id="cokingAlertBanner" class="absolute bottom-2 left-1/2 -translate-x-1/2 pointer-events-none hidden px-4 py-1.5 rounded-full bg-rose-950/90 border border-rose-500 text-rose-200 text-xs font-mono-code flex items-center gap-2 shadow-lg glow-red animate-pulse">
+              <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400"></i>
+              <span>WARNING: CARBON SOOT FORMATION DETECTED ON YSZ TRIPLE-PHASE BOUNDARY</span>
+            </div>
+          </div>
+
+          <!-- Dynamic Legend & Physical State Bar -->
+          <div class="grid grid-cols-3 gap-2 mt-3 text-center text-xs font-mono-code">
+            <div class="bg-slate-950/70 p-2 rounded border border-slate-800">
+              <span class="text-slate-400 block text-[10px]">CATHODE GAS</span>
+              <span class="text-cyan-300 font-semibold" id="cathodeGasRatio">95.0% CO2 / 5.0% CO</span>
+            </div>
+            <div class="bg-slate-950/70 p-2 rounded border border-slate-800">
+              <span class="text-slate-400 block text-[10px]">MEMBRANE STRAIN</span>
+              <span class="text-emerald-400 font-semibold" id="membraneStrain">$\varepsilon = 0.012\%$</span>
+            </div>
+            <div class="bg-slate-950/70 p-2 rounded border border-slate-800">
+              <span class="text-slate-400 block text-[10px]">ANODE EXHAUST</span>
+              <span class="text-emerald-300 font-semibold">99.8% Medical-Grade O2</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Diagnostic Phase Space Trajectory (5 cols) -->
+        <div class="lg:col-span-5 bg-slate-900/50 backdrop-blur border border-slate-800/80 rounded-xl p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <h3 class="font-semibold text-sm text-slate-200">Phase Space: Charge ($Q$) vs Resistance ($R$)</h3>
+              <p class="text-[11px] text-slate-400">Nonlinear Inversion Trajectory Telemetry</p>
+            </div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono-code bg-purple-950/70 text-purple-300 border border-purple-800/40">$(Q, R)$ Plane</span>
+          </div>
+
+          <!-- Chart.js Container -->
+          <div class="relative w-full h-[280px]">
+            <canvas id="phaseSpaceChart"></canvas>
+          </div>
+
+          <div class="mt-2 text-[11px] text-slate-400 bg-slate-950/80 p-2.5 rounded-lg border border-slate-800/70 space-y-1 font-mono-code">
+            <div class="flex items-center justify-between text-slate-300">
+              <span>$\partial R / \partial Q$ Slope:</span>
+              <span id="hudSlope" class="text-cyan-400">+0.00012 $\Omega$/kC (Nominal)</span>
+            </div>
+            <div class="flex items-center justify-between text-slate-300">
+              <span>Threshold Boundary:</span>
+              <span class="text-rose-400 font-semibold">Spike &gt; +0.15 $\Omega$ $\Rightarrow$ Coking Trap</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Controls & Secondary Telemetry Row -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Closed-Loop Interactive Controls Panel (5 cols) -->
+        <div class="lg:col-span-5 bg-slate-900/60 backdrop-blur border border-slate-800/80 rounded-xl p-4 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div class="flex items-center gap-2">
+              <i data-lucide="sliders" class="w-4 h-4 text-cyan-400"></i>
+              <h4 class="font-semibold text-sm text-slate-200">SOEC Stack Controller & Fault Injection</h4>
+            </div>
+            <button onclick="resetSimulation()" class="text-xs font-mono-code px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+              Reset Stack
+            </button>
+          </div>
+
+          <!-- Sliders -->
+          <div class="space-y-3 text-xs font-mono-code">
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-400">OPERATING TEMPERATURE ($T$)</span>
+                <span class="text-amber-400 font-bold" id="valTemp">800 °C</span>
+              </div>
+              <input type="range" id="sliderTemp" min="650" max="950" step="5" value="800" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500" oninput="updateControls()">
+              <div class="flex justify-between text-[10px] text-slate-500 mt-0.5">
+                <span>650°C (High Coking Risk)</span>
+                <span>800°C (Nominal MOXIE)</span>
+                <span>950°C (Creep Hazard)</span>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-400">ELECTROLYSIS CURRENT ($I$)</span>
+                <span class="text-cyan-400 font-bold" id="valCurrent">4.0 A</span>
+              </div>
+              <input type="range" id="sliderCurrent" min="1.0" max="8.0" step="0.2" value="4.0" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500" oninput="updateControls()">
+              <div class="flex justify-between text-[10px] text-slate-500 mt-0.5">
+                <span>1.0 A (Low Yield)</span>
+                <span>4.0 A (Rated)</span>
+                <span>8.0 A (Over-pot Driven)</span>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-400">CO2 FEED PRESSURE ($P_{\text{CO}_2}$)</span>
+                <span class="text-emerald-400 font-bold" id="valPressure">1.00 bar</span>
+              </div>
+              <input type="range" id="sliderPressure" min="0.2" max="2.0" step="0.05" value="1.00" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500" oninput="updateControls()">
+            </div>
+          </div>
+
+          <!-- Fault Injections & Closed-Loop Toggle -->
+          <div class="pt-2 border-t border-slate-800 space-y-2">
+            <span class="text-xs font-semibold text-slate-300 block">Anomaly Trigger & Autonomous Mode</span>
+            
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="injectCokingFault()" id="btnFaultCoking" class="px-3 py-2 rounded-lg bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/60 text-rose-300 text-xs font-medium flex items-center justify-center gap-1.5 transition">
+                <i data-lucide="flame" class="w-3.5 h-3.5"></i>
+                <span>Inject Coking (Soot)</span>
+              </button>
+
+              <button onclick="injectMicrocrackFault()" id="btnFaultCrack" class="px-3 py-2 rounded-lg bg-amber-950/60 hover:bg-amber-900/80 border border-amber-800/60 text-amber-300 text-xs font-medium flex items-center justify-center gap-1.5 transition">
+                <i data-lucide="zap-off" class="w-3.5 h-3.5"></i>
+                <span>Simulate YSZ Crack</span>
+              </button>
+            </div>
+
+            <div class="p-3 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-between">
+              <div>
+                <span class="text-xs font-semibold text-slate-200 block">SolidOx Autonomous Sentinel Observer</span>
+                <span class="text-[11px] text-slate-400">Auto-pulse $O_2/\text{CO}_2$ upon anomalous $\partial R/\partial Q$</span>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="toggleAutoMitigation" checked class="sr-only peer" onchange="toggleAutoMitigationMode()">
+                <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
+              </label>
+            </div>
+
+            <button onclick="manualOxidantPulse()" id="btnManualPulse" class="w-full py-2 rounded-lg bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-600 text-cyan-300 text-xs font-semibold flex items-center justify-center gap-2 transition">
+              <i data-lucide="sparkles" class="w-4 h-4"></i>
+              <span>Manual Oxidant Pulse ($O_2$ Burn-off Burst)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Secondary Real-Time Telemetry Plots (7 cols) -->
+        <div class="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Time Series Chart 1: Cell Resistance vs Time -->
+          <div class="bg-slate-900/50 backdrop-blur border border-slate-800/80 rounded-xl p-3.5 flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-semibold text-slate-300">Stack Resistance $R(t)$ [$\Omega$]</span>
+              <span class="text-[10px] font-mono-code text-cyan-400">Rolling 60s</span>
+            </div>
+            <div class="relative h-[180px] w-full">
+              <canvas id="resistanceTimeChart"></canvas>
+            </div>
+            <div class="text-[10px] font-mono-code text-slate-400 mt-1 flex justify-between">
+              <span>Nominal: $0.40 - 0.44\,\Omega$</span>
+              <span id="tsRVal" class="text-amber-400">0.420 $\Omega$</span>
+            </div>
+          </div>
+
+          <!-- Time Series Chart 2: Oxidant Pulse & Overpotential vs Time -->
+          <div class="bg-slate-900/50 backdrop-blur border border-slate-800/80 rounded-xl p-3.5 flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-semibold text-slate-300">Sentinel Overpotential $\eta(t)$ [V]</span>
+              <span class="text-[10px] font-mono-code text-emerald-400">Cathode/Anode $\eta$</span>
+            </div>
+            <div class="relative h-[180px] w-full">
+              <canvas id="overpotentialChart"></canvas>
+            </div>
+            <div class="text-[10px] font-mono-code text-slate-400 mt-1 flex justify-between">
+              <span>Threshold: $\eta > 0.38\text{ V}$</span>
+              <span id="tsEtaVal" class="text-emerald-400">0.142 V</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- TAB 2: CORE PHYSICS & MATHEMATICAL MODEL -->
+    <div id="viewPhysics" class="hidden space-y-6">
+      
+      <!-- Intro Banner -->
+      <div class="bg-gradient-to-r from-slate-900 via-slate-900/90 to-cyan-950/40 border border-slate-800 rounded-xl p-5">
+        <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+          <i data-lucide="book-open" class="w-5 h-5 text-cyan-400"></i>
+          Solid Oxide Electrolysis Physics & Dynamic Inversion Theory
+        </h2>
+        <p class="text-sm text-slate-300 mt-1 max-w-4xl">
+          NASA’s Mars Oxygen ISRU Experiment (MOXIE) proved solid oxide electrolysis on another world. However, operating at high current densities induces severe non-linear degradation: solid carbon coking via Boudouard disproportionation and mechanical ceramic cracking. SolidOx solves this through high-frequency real-time $(Q, R)$ trajectory state inversion.
+        </p>
+      </div>
+
+      <!-- 4 Core Physics Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Card 1: Fundamental Governing Electrochemistry -->
+        <div class="bg-slate-900/60 backdrop-blur border border-slate-800 rounded-xl p-5 space-y-3">
+          <div class="flex items-center gap-2 text-cyan-400">
+            <i data-lucide="zap" class="w-5 h-5"></i>
+            <h3 class="font-bold text-base text-slate-100">1. Electrolysis Kinetics & Nernst Overpotential</h3>
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            The cell operating potential $V_{\text{cell}}$ is determined by the open-circuit Nernst potential $E_{\text{Nernst}}$ augmented by ohmic losses in the Yttria-Stabilized Zirconia (YSZ) and activation/concentration overpotentials at the porous nickel cermet cathode:
+          </p>
+          
+          <div class="formula-box">
+            $$V_{\text{cell}} = E^0(T) + \frac{R_g T}{2F} \ln\left( \frac{P_{\text{CO}} \cdot P_{\text{O}_2}^{1/2}}{P_{\text{CO}_2}} \right) + I \cdot R_{\text{YSZ}}(T) + \eta_{\text{act}} + \eta_{\text{conc}}$$
+          </div>
+
+          <p class="text-xs text-slate-400">
+            Where $R_g$ is the universal gas constant, $F = 96485 \text{ C/mol}$, and $R_{\text{YSZ}}(T)$ follows an Arrhenius ionic conduction profile:
+          </p>
+
+          <div class="formula-box">
+            $$\sigma_{\text{ionic}}(T) = \frac{\sigma_0}{T} \exp\left( -\frac{E_a}{k_B T} \right) \implies R_{\text{YSZ}} = \frac{L_{\text{membrane}}}{\sigma_{\text{ionic}} \cdot A_{\text{active}}}$$
+          </div>
+        </div>
+
+        <!-- Card 2: Boudouard Carbon Coking Kinetics -->
+        <div class="bg-slate-900/60 backdrop-blur border border-slate-800 rounded-xl p-5 space-y-3">
+          <div class="flex items-center gap-2 text-rose-400">
+            <i data-lucide="flame" class="w-5 h-5"></i>
+            <h3 class="font-bold text-base text-slate-100">2. Carbon Coking & Triple-Phase Boundary Deactivation</h3>
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            When the cathode local partial pressure of $\text{CO}$ exceeds thermodynamic equilibrium or when cathodic overpotential $\eta_{\text{cath}}$ drives the carbon activity $a_{\text{C}} > 1$, solid graphite nucleates via the Boudouard disproportionation reaction:
+          </p>
+
+          <div class="formula-box">
+            $$2\text{CO}_{(\text{g})} \rightleftharpoons \text{C}_{(\text{s})} + \text{CO}_{2(\text{g})}, \quad \Delta G^{\circ}_{\text{Boudouard}} = -172.5\text{ kJ/mol} + 175.7 \cdot T \text{ J/(mol}\cdot\text{K)}$$
+          </div>
+
+          <p class="text-xs text-slate-400">
+            Solid carbon plugs the porous Ni-YSZ Triple Phase Boundary (TPB) length $\lambda_{\text{TPB}}$, reducing electrocatalytic active area and causing a severe non-linear divergence in the apparent internal resistance $R$:
+          </p>
+
+          <div class="formula-box">
+            $$\frac{dR}{dQ} = \left(\frac{\partial R}{\partial \lambda_{\text{TPB}}}\right)\left(\frac{\partial \lambda_{\text{TPB}}}{\partial m_{\text{soot}}}\right) \cdot \frac{k_{\text{coke}}(a_{\text{C}} - 1)}{I} + \left.\frac{dR}{dQ}\right|_{\text{nominal}}$$
+          </div>
+        </div>
+
+        <!-- Card 3: Diagnostic State Observer Formulation -->
+        <div class="bg-slate-900/60 backdrop-blur border border-slate-800 rounded-xl p-5 space-y-3">
+          <div class="flex items-center gap-2 text-purple-400">
+            <i data-lucide="cpu" class="w-5 h-5"></i>
+            <h3 class="font-bold text-base text-slate-100">3. Dynamic $(Q, R)$ State Observer & Inversion</h3>
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Passing cumulative electric charge $Q(t) = \int_0^t I(\tau)\,d\tau$ maps the theoretical molar stoichiometry of dissociated $\text{CO}_2$. By decoupling slow thermal drift from high-frequency impedance perturbations, the SolidOx observer solves the recursive Kalman state estimator:
+          </p>
+
+          <div class="formula-box">
+            $$\mathbf{x}_{k+1} = \begin{bmatrix} R_k \\ \dot{R}_k \\ \theta_{\text{coke}, k} \end{bmatrix} + \mathbf{B} u_k + \mathbf{w}_k, \quad y_k = V_{\text{cell}, k} / I_k$$
+          </div>
+
+          <p class="text-xs text-slate-400">
+            The Sentinel continuously evaluates the dynamic curvature invariant $\kappa$:
+          </p>
+
+          <div class="formula-box">
+            $$\kappa(Q) = \frac{\left| \frac{d^2 R}{dQ^2} \right|}{\left[ 1 + \left( \frac{dR}{dQ} \right)^2 \right]^{3/2}} \quad \xrightarrow[\kappa > \kappa_{\text{crit}}]{\text{Trigger Condition}} \quad \text{Autonomous Oxidant Pulse Initiated}$$
+          </div>
+        </div>
+
+        <!-- Card 4: Micro-Fabrication & Hardware Implementation -->
+        <div class="bg-slate-900/60 backdrop-blur border border-slate-800 rounded-xl p-5 space-y-3">
+          <div class="flex items-center gap-2 text-emerald-400">
+            <i data-lucide="layers" class="w-5 h-5"></i>
+            <h3 class="font-bold text-base text-slate-100">4. Substrate Specifications & High-Temp Micro-Sensors</h3>
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            The flight-grade stack utilizes an ultra-thin 8YSZ ($8\text{ mol}\% \text{ Y}_2\text{O}_3\text{-ZrO}_2$) electrolyte membrane ($10\text{ }\mu\text{m}$) supported on a $300\text{ }\mu\text{m}$ Ni-YSZ porous cermet fuel electrode with an LSCF-GDC oxygen electrode.
+          </p>
+
+          <div class="formula-box">
+            $$\text{Pulse Burn-Off Eq: } \text{C}_{(\text{soot})} + \text{O}_{2,\text{pulse}} \to \text{CO}_{2(\text{g})} \quad (\Delta H = -393.5\text{ kJ/mol})$$
+          </div>
+
+          <p class="text-xs text-slate-400">
+            Sub-millisecond transient gas-pulsing valves inject micro-doses ($<0.5\text{ s}$) of recycled anode $\text{O}_2$ directly into the cathode manifold, instantaneously oxidizing graphite without quenching stack operating temperature ($800^{\circ}\text{C} \pm 4^{\circ}\text{C}$).
+          </p>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- TAB 3: $225k NASA SBIR/STTR PROPOSAL & HARDWARE TRANSITION -->
+    <div id="viewProposal" class="hidden space-y-6">
+      
+      <!-- Executive Summary Banner -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800 text-xs font-mono-code font-bold">TOPIC: TX07.01</span>
+            <span class="text-xs text-slate-400">NASA STTR 2026 Phase I Solicitation</span>
+          </div>
+          <h2 class="text-xl font-bold text-slate-100 mt-1">Autonomous SolidOx Health Sentinel for Long-Duration Lunar & Martian SOEC ISRU</h2>
+          <p class="text-xs text-slate-300 mt-1">Total Phase I Budget: <span class="font-bold text-emerald-400">$225,000</span> | Period of Performance: <span class="font-bold text-cyan-400">6 Months</span> | TRL Entrance: 3 $\to$ TRL Exit: 5</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-right">
+            <span class="text-[10px] text-slate-400 block">UNIVERSITY PARTNER</span>
+            <span class="text-xs font-bold text-purple-300">Univ. of Central Florida (UCF)</span>
+            <span class="text-[10px] text-emerald-400 block font-mono-code">30.0% Allocation ($67,500)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Budget & Allocation Breakdown -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-slate-900/50 border border-slate-800 p-4 rounded-xl">
+          <span class="text-xs text-slate-400 block mb-1">PRIME CONTRACTOR (RFWaveCode)</span>
+          <div class="text-2xl font-bold font-mono-code text-cyan-300">$157,500</div>
+          <p class="text-[11px] text-slate-400 mt-1">70.0% direct share for algorithmic Kalman observer development, $(Q, R)$ inversion engine, and embedded firmware synthesis.</p>
+        </div>
+        <div class="bg-slate-900/50 border border-slate-800 p-4 rounded-xl">
+          <span class="text-xs text-slate-400 block mb-1">STTR RESEARCH INSTITUTION (UCF CATER)</span>
+          <div class="text-2xl font-bold font-mono-code text-purple-300">$67,500</div>
+          <p class="text-[11px] text-slate-400 mt-1">30.0% statutory subcontract to UCF Center for Advanced Turbomachinery and Energy Research (CATER) for high-temp vacuum testing.</p>
+        </div>
+        <div class="bg-slate-900/50 border border-slate-800 p-4 rounded-xl">
+          <span class="text-xs text-slate-400 block mb-1">PHASE II ACCELERATION TARGET</span>
+          <div class="text-2xl font-bold font-mono-code text-emerald-300">$1,250,000</div>
+          <p class="text-[11px] text-slate-400 mt-1">24-month multi-cell stack ground test at NASA Marshall Space Flight Center & JPL testbeds prior to Artemis VII Lunar Base deployment.</p>
+        </div>
+      </div>
+
+      <!-- Phase I Work Breakdown Schedule (Months 1-6) -->
+      <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-5 space-y-4">
+        <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+          <i data-lucide="calendar" class="w-4 h-4 text-cyan-400"></i>
+          Work Breakdown Structure & Milestone Timeline (6 Months)
+        </h3>
+
+        <div class="space-y-3">
+          
+          <div class="p-3 bg-slate-950/70 rounded-lg border border-slate-800/80 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div class="flex items-start gap-3">
+              <span class="px-2 py-1 rounded bg-cyan-950 text-cyan-400 text-xs font-mono-code font-bold">M1 - M2</span>
+              <div>
+                <h4 class="text-xs font-bold text-slate-200">Milestone 1: Dynamic Micro-Kinetic Coking & Fracture Modeling</h4>
+                <p class="text-[11px] text-slate-400">Implement Butler-Volmer and Boudouard reaction network dynamics; parameterize 1D multi-physics finite element models matching NASA MOXIE flight telemetry.</p>
+              </div>
+            </div>
+            <span class="text-xs font-mono-code text-cyan-300 shrink-0">$42,000</span>
+          </div>
+
+          <div class="p-3 bg-slate-950/70 rounded-lg border border-slate-800/80 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div class="flex items-start gap-3">
+              <span class="px-2 py-1 rounded bg-purple-950 text-purple-400 text-xs font-mono-code font-bold">M3 - M4</span>
+              <div>
+                <h4 class="text-xs font-bold text-slate-200">Milestone 2: Real-Time $(Q, R)$ Inversion Observer & Embedded Kalman Engine</h4>
+                <p class="text-[11px] text-slate-400">Formulate high-speed recursive state observer to decouple ohmic resistance, mass transport limitations, and early soot nucleation on ARM Cortex-M7 flight boards.</p>
+              </div>
+            </div>
+            <span class="text-xs font-mono-code text-purple-300 shrink-0">$68,500</span>
+          </div>
+
+          <div class="p-3 bg-slate-950/70 rounded-lg border border-slate-800/80 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div class="flex items-start gap-3">
+              <span class="px-2 py-1 rounded bg-amber-950 text-amber-400 text-xs font-mono-code font-bold">M5</span>
+              <div>
+                <h4 class="text-xs font-bold text-slate-200">Milestone 3: Hardware-in-the-Loop Validation in UCF CATER High-Temp Vacuum Chamber</h4>
+                <p class="text-[11px] text-slate-400">Subject single-cell YSZ button stacks to simulated Martian atmospheres ($95.3\% \text{ CO}_2, 7\text{ mbar}, 800^{\circ}\text{C}$); evaluate autonomous soot burn-off with zero membrane cracking.</p>
+              </div>
+            </div>
+            <span class="text-xs font-mono-code text-amber-300 shrink-0">$62,000</span>
+          </div>
+
+          <div class="p-3 bg-slate-950/70 rounded-lg border border-slate-800/80 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div class="flex items-start gap-3">
+              <span class="px-2 py-1 rounded bg-emerald-950 text-emerald-400 text-xs font-mono-code font-bold">M6</span>
+              <div>
+                <h4 class="text-xs font-bold text-slate-200">Milestone 4: Phase II Scale-Up Specification & Flight Architecture Final Report</h4>
+                <p class="text-[11px] text-slate-400">Finalize 1 kW multi-stack flight package design for Lunar polar ice-to-oxygen and Martian Ascent Vehicle (MAV) propellant fuel depot plants.</p>
+              </div>
+            </div>
+            <span class="text-xs font-mono-code text-emerald-300 shrink-0">$52,500</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- University Partner Test Facilities Detail -->
+      <div class="bg-gradient-to-r from-purple-950/30 to-slate-900 border border-purple-900/50 rounded-xl p-5">
+        <h3 class="font-bold text-sm text-purple-300 flex items-center gap-2 mb-2">
+          <i data-lucide="building" class="w-4 h-4 text-purple-400"></i>
+          Academic Hardware Validation: UCF CATER Infrastructure
+        </h3>
+        <p class="text-xs text-slate-300 leading-relaxed">
+          The University of Central Florida Center for Advanced Turbomachinery and Energy Research (CATER) operates dedicated high-temperature ceramic materials testing facilities, including environmental scanning electron microscopy (ESEM), in-situ Raman spectroscopy for real-time graphite peak detection ($1580 \text{ cm}^{-1}$ G-band), and sub-atmospheric Martian simulation chambers capable of sustained $1000^{\circ}\text{C}$ thermal cycling.
+        </p>
+      </div>
+
+    </div>
+
+    <!-- TAB 4: COMMERCIAL & NATIONWIDE ARR BREAKDOWN ($218M) -->
+    <div id="viewARR" class="hidden space-y-6">
+      
+      <!-- Top ARR Summary Banner -->
+      <div class="bg-gradient-to-br from-slate-900 via-cyan-950/40 to-slate-900 border border-cyan-800/60 rounded-xl p-5 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div>
+          <span class="px-2.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-700 text-xs font-mono-code font-bold">CIVIL & COMMERCIAL EXPANSION</span>
+          <h2 class="text-2xl font-bold text-slate-100 mt-1">Total Commercial ARR Opportunity: <span class="text-emerald-400 font-mono-code">$218.4M</span></h2>
+          <p class="text-xs text-slate-300 mt-1 max-w-3xl">
+            Solid oxide electrolysis cells are not just space hardware—they represent the foundational technology for green steel hydrogen direct reduction, synthetic e-fuels, carbon capture utilization (CCU), and semiconductor manufacturing. SolidOx software prevents premature stack failure across over 600,000 industrial stacks nationwide.
+          </p>
+        </div>
+
+        <div class="bg-slate-950/90 border border-slate-800 p-4 rounded-xl text-center shrink-0">
+          <span class="text-[10px] text-slate-400 block uppercase tracking-wider">Enterprise Valuation @ 10x Multiple</span>
+          <div class="text-2xl font-extrabold text-cyan-300 font-mono-code">$2.18 Billion</div>
+          <span class="text-[10px] text-emerald-400 font-semibold block mt-0.5">Software SaaS + Firmware Licensing</span>
+        </div>
+      </div>
+
+      <!-- Nationwide ARR Distribution Table -->
+      <div class="bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden">
+        <div class="p-4 border-b border-slate-800 flex justify-between items-center">
+          <h3 class="font-bold text-sm text-slate-200">5-Vertical Commercial Market Distribution</h3>
+          <span class="text-xs font-mono-code text-slate-400">Updated for Fiscal Year 2026-2030</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs font-mono-code">
+            <thead class="bg-slate-950/80 text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="p-3">Commercial Vertical</th>
+                <th class="p-3">Target Application</th>
+                <th class="p-3">SaaS / Stack Fee</th>
+                <th class="p-3">National Asset Base</th>
+                <th class="p-3 text-right">Mature Annual ARR</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60 text-slate-300">
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3 font-semibold text-cyan-300">1. Green Steel & Hydrogen DRI</td>
+                <td class="p-3 text-slate-400">High-temp steam SOEC for iron reduction</td>
+                <td class="p-3">$420 / stack / mo</td>
+                <td class="p-3">14,200 commercial modules</td>
+                <td class="p-3 text-right font-bold text-emerald-400">$71.5M</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3 font-semibold text-cyan-300">2. Synthetic E-Fuels & SAF Plants</td>
+                <td class="p-3 text-slate-400">Co-electrolysis of CO2/H2O into Syngas</td>
+                <td class="p-3">$580 / stack / mo</td>
+                <td class="p-3">8,500 syn-fuel electrolyzers</td>
+                <td class="p-3 text-right font-bold text-emerald-400">$59.2M</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3 font-semibold text-cyan-300">3. Industrial Direct Air Capture (DAC)</td>
+                <td class="p-3 text-slate-400">Electrochemical CO2 mineralization</td>
+                <td class="p-3">$260 / stack / mo</td>
+                <td class="p-3">15,800 DAC modular units</td>
+                <td class="p-3 text-right font-bold text-emerald-400">$49.3M</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3 font-semibold text-cyan-300">4. Semiconductor Ultra-Pure H2/O2</td>
+                <td class="p-3 text-slate-400">Point-of-use semiconductor carrier gas</td>
+                <td class="p-3">$950 / stack / mo</td>
+                <td class="p-3">2,200 fab cleanroom stations</td>
+                <td class="p-3 text-right font-bold text-emerald-400">$25.1M</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3 font-semibold text-cyan-300">5. Artemis & Commercial Space ISRU</td>
+                <td class="p-3 text-slate-400">Lunar/Mars propellant manufacturing plants</td>
+                <td class="p-3">$4,500 / mission unit / mo</td>
+                <td class="p-3">245 flight qualification stacks</td>
+                <td class="p-3 text-right font-bold text-emerald-400">$13.3M</td>
+              </tr>
+            </tbody>
+            <tfoot class="bg-slate-950 font-bold text-slate-200">
+              <tr>
+                <td colspan="4" class="p-3 text-right uppercase">Total Consolidated ARR:</td>
+                <td class="p-3 text-right text-emerald-400 text-sm">$218.4M / year</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Industry Deep-Dive Cards (The Physics & Why Others Missed This) -->
+      <div class="space-y-4">
+        <h3 class="font-bold text-base text-slate-100">Deep-Tech Industrial Rationale: Why Legacy Incumbents Failed</h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          <div class="bg-slate-900/50 border border-slate-800 p-4 rounded-xl space-y-2">
+            <h4 class="font-bold text-xs text-cyan-300 flex items-center gap-1.5">
+              <i data-lucide="factory" class="w-4 h-4"></i>
+              Green Steel Direct Reduced Iron (DRI)
+            </h4>
+            <p class="text-xs text-slate-300">
+              <span class="font-semibold text-slate-100">The Physics in 1 Sentence:</span> Steam SOEC stacks operated above $800^{\circ}\text{C}$ achieve $>95\%$ electrical efficiency but fail abruptly when localized steam starvation triggers irreversible nickel oxidation and electrolyte cracking.
+            </p>
+            <p class="text-xs text-slate-400">
+              <span class="font-semibold text-amber-300">Why Others Missed This:</span> Incumbent steel manufacturers monitor static gross voltage per stack of 100 cells. By the time total stack voltage drops, three individual cells have already catastrophically fractured, shutting down an entire multi-megawatt blast furnace conversion line.
+            </p>
+          </div>
+
+          <div class="bg-slate-900/50 border border-slate-800 p-4 rounded-xl space-y-2">
+            <h4 class="font-bold text-xs text-cyan-300 flex items-center gap-1.5">
+              <i data-lucide="plane-takeoff" class="w-4 h-4"></i>
+              Synthetic Aviation E-Fuels (SAF) & Syngas
+            </h4>
+            <p class="text-xs text-slate-300">
+              <span class="font-semibold text-slate-100">The Physics in 1 Sentence:</span> Co-electrolyzing $\text{CO}_2$ and $\text{H}_2\text{O}$ simultaneously produces $\text{CO}$ and $\text{H}_2$ syngas, but unequal local reaction rates cause the carbon activity ratio $a_{\text{C}}$ to unpredictably cross unity, coating nickel pores with graphite.
+            </p>
+            <p class="text-xs text-slate-400">
+              <span class="font-semibold text-amber-300">Why Others Missed This:</span> Chemical operators rely on passive excess steam buffers ($300\%$ excess water), which destroys system thermal efficiency. SolidOx provides dynamic micro-pulsing, operating on razor-thin optimal stoichiometry with zero soot risk.
+            </p>
+          </div>
+
+          <div class="bg-slate-900/50 border border-slate-800 p-4 rounded-xl space-y-2">
+            <h4 class="font-bold text-xs text-cyan-300 flex items-center gap-1.5">
+              <i data-lucide="wind" class="w-4 h-4"></i>
+              Point-Source Carbon Capture & Utilization (CCU)
+            </h4>
+            <p class="text-xs text-slate-300">
+              <span class="font-semibold text-slate-100">The Physics in 1 Sentence:</span> Flue gas $\text{CO}_2$ concentration fluctuates rapidly with factory cycles; low $\text{CO}_2$ partial pressure shifts the Nernst potential past the carbon deposition threshold in seconds.
+            </p>
+            <p class="text-xs text-slate-400">
+              <span class="font-semibold text-amber-300">Why Others Missed This:</span> Incumbents use slow thermal couples that respond on a 15-minute time lag. SolidOx’s electrical $(Q, R)$ inversion runs at 100 Hz, neutralizing carbon formation before soot filaments nucleate.
+            </p>
+          </div>
+
+          <div class="bg-slate-900/50 border border-slate-800 p-4 rounded-xl space-y-2">
+            <h4 class="font-bold text-xs text-cyan-300 flex items-center gap-1.5">
+              <i data-lucide="cpu" class="w-4 h-4"></i>
+              Next-Gen Semiconductor Cleanroom Gases
+            </h4>
+            <p class="text-xs text-slate-300">
+              <span class="font-semibold text-slate-100">The Physics in 1 Sentence:</span> High-purity point-of-use electrolysis eliminates hazardous gas cylinder transport into cleanroom sub-fabs, but trace seal micro-cracks cause catastrophic ambient air contamination.
+            </p>
+            <p class="text-xs text-slate-400">
+              <span class="font-semibold text-amber-300">Why Others Missed This:</span> Cleanrooms replace entire stacks every 6 months preventatively at extreme capital cost ($85,000/stack). SolidOx extends continuous certified operation to 36+ months with verified structural integrity certification.
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Call to Action Banner -->
+      <div class="bg-slate-950 border border-slate-800 rounded-xl p-6 text-center space-y-3">
+        <h4 class="text-lg font-bold text-slate-100">Enterprise Licensing & NASA Technical Partnerships</h4>
+        <p class="text-xs text-slate-400 max-w-xl mx-auto">
+          SolidOx is delivered as a turnkey firmware runtime binary and cloud supervisory telemetry suite compatible with National Instruments, Siemens, and flight-qualified FPGA micro-architectures.
+        </p>
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-950 border border-cyan-600 text-cyan-300 text-xs font-mono-code">
+          <i data-lucide="mail" class="w-4 h-4"></i>
+          <span>Direct Inquiries: support@rfwavecode.com</span>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- JAVASCRIPT SIMULATION, CHARTS & CONTROLLER LOGIC -->
+  <script>
+    // Tab Switching State Machine
+    const tabMapping = {
+      'sim': { viewId: 'viewSim', btnId: 'tabBtnSim' },
+      'physics': { viewId: 'viewPhysics', btnId: 'tabBtnPhysics' },
+      'proposal': { viewId: 'viewProposal', btnId: 'tabBtnProposal' },
+      'arr': { viewId: 'viewARR', btnId: 'tabBtnARR' }
+    };
+
+    function switchTab(targetKey) {
+      Object.keys(tabMapping).forEach(key => {
+        const viewEl = document.getElementById(tabMapping[key].viewId);
+        const btnEl = document.getElementById(tabMapping[key].btnId);
+        
+        if (key === targetKey) {
+          viewEl.classList.remove('hidden');
+          btnEl.className = "px-3.5 py-1.5 rounded-md transition-all flex items-center gap-2 bg-cyan-500 text-slate-950 font-semibold shadow";
+        } else {
+          viewEl.classList.add('hidden');
+          btnEl.className = "px-3.5 py-1.5 rounded-md transition-all flex items-center gap-2 text-slate-400 hover:text-slate-100";
+        }
+      });
+
+      // Retrigger MathJax Typesetting immediately on view change
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise().catch(err => console.debug(err));
+      }
+
+      // Re-render and resize canvas if returning to simulation
+      if (targetKey === 'sim') {
+        setTimeout(() => {
+          resizeCanvas();
+        }, 30);
+      }
+    }
+
+    // SIMULATION STATE VARIABLES
+    const simState = {
+      time: 0,
+      totalCharge_kC: 0.0,
+      current_A: 4.0,
+      temperature_C: 800.0,
+      pressure_bar: 1.0,
+      
+      // Degradation & Coking Model
+      baselineR: 0.420,
+      actualR: 0.420,
+      cokingSeverity: 0.0,      // 0 to 100%
+      carbonThickness_nm: 0.0,
+      microcrackDamage: 0.0,    // 0 to 100%
+      
+      // Observer & Mitigations
+      autoMitigation: true,
+      isPulsing: false,
+      pulseTimer: 0,
+      o2Yield_g: 0.0,
+      
+      // Fault Injection Flags
+      faultCokingActive: false,
+      faultCrackActive: false,
+
+      // Trajectory History for Charting
+      phasePoints: [],
+      timeSeriesHistory: {
+        timestamps: [],
+        resistance: [],
+        overpotential: []
+      }
+    };
+
+    // DOM Element References
+    const hudCharge = document.getElementById('hudCharge');
+    const hudResistance = document.getElementById('hudResistance');
+    const hudDeltaR = document.getElementById('hudDeltaR');
+    const hudCoking = document.getElementById('hudCoking');
+    const hudCokingState = document.getElementById('hudCokingState');
+    const hudO2Rate = document.getElementById('hudO2Rate');
+    const hudO2Total = document.getElementById('hudO2Total');
+    const hudSlope = document.getElementById('hudSlope');
+    const quickTempDisplay = document.getElementById('quickTempDisplay');
+    const quickHealthBadge = document.getElementById('quickHealthBadge');
+    const pulseStatusBadge = document.getElementById('pulseStatusBadge');
+    const membraneStressBadge = document.getElementById('membraneStressBadge');
+    const cokingAlertBanner = document.getElementById('cokingAlertBanner');
+    const cathodeGasRatio = document.getElementById('cathodeGasRatio');
+    const membraneStrain = document.getElementById('membraneStrain');
+    const tsRVal = document.getElementById('tsRVal');
+    const tsEtaVal = document.getElementById('tsEtaVal');
+
+    // Controls
+    const sliderTemp = document.getElementById('sliderTemp');
+    const sliderCurrent = document.getElementById('sliderCurrent');
+    const sliderPressure = document.getElementById('sliderPressure');
+    const valTemp = document.getElementById('valTemp');
+    const valCurrent = document.getElementById('valCurrent');
+    const valPressure = document.getElementById('valPressure');
+    const toggleAutoMitigation = document.getElementById('toggleAutoMitigation');
+
+    function updateControls() {
+      simState.temperature_C = parseFloat(sliderTemp.value);
+      simState.current_A = parseFloat(sliderCurrent.value);
+      simState.pressure_bar = parseFloat(sliderPressure.value);
+
+      valTemp.innerText = `${simState.temperature_C} °C`;
+      valCurrent.innerText = `${simState.current_A.toFixed(1)} A`;
+      valPressure.innerText = `${simState.pressure_bar.toFixed(2)} bar`;
+      quickTempDisplay.innerText = `${simState.temperature_C.toFixed(1)} °C`;
+    }
+
+    function toggleAutoMitigationMode() {
+      simState.autoMitigation = toggleAutoMitigation.checked;
+    }
+
+    function injectCokingFault() {
+      simState.faultCokingActive = true;
+      simState.cokingSeverity = Math.min(100, simState.cokingSeverity + 28);
+    }
+
+    function injectMicrocrackFault() {
+      simState.faultCrackActive = true;
+      simState.microcrackDamage = Math.min(100, simState.microcrackDamage + 35);
+    }
+
+    function manualOxidantPulse() {
+      triggerPulse();
+    }
+
+    function triggerPulse() {
+      if (simState.isPulsing) return;
+      simState.isPulsing = true;
+      simState.pulseTimer = 45; // ~1.8 seconds (45 ticks)
+      pulseStatusBadge.innerText = "INJECTOR: PULSING O2";
+      pulseStatusBadge.className = "px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500 animate-pulse font-bold";
+    }
+
+    function resetSimulation() {
+      simState.time = 0;
+      simState.totalCharge_kC = 0.0;
+      simState.cokingSeverity = 0.0;
+      simState.carbonThickness_nm = 0.0;
+      simState.microcrackDamage = 0.0;
+      simState.faultCokingActive = false;
+      simState.faultCrackActive = false;
+      simState.isPulsing = false;
+      simState.pulseTimer = 0;
+      simState.o2Yield_g = 0.0;
+      simState.phasePoints = [];
+      simState.timeSeriesHistory.timestamps = [];
+      simState.timeSeriesHistory.resistance = [];
+      simState.timeSeriesHistory.overpotential = [];
+      
+      initPhaseSpaceData();
+      cokingAlertBanner.classList.add('hidden');
+      pulseStatusBadge.innerText = "INJECTOR: IDLE";
+      pulseStatusBadge.className = "px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700";
+    }
+
+    // CANVAS DRAWING ENGINE (High-DPI Handling & Particle Physics)
+    const canvas = document.getElementById('membraneCanvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const w = rect.width || 600;
+      const h = rect.height || 320;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.resetTransform();
+      ctx.scale(dpr, dpr);
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // Microstructure Particles (CO2, CO, O2-, O2)
+    function initParticles() {
+      particles = [];
+      for (let i = 0; i < 48; i++) {
+        particles.push({
+          x: Math.random() * 600,
+          y: Math.random() * 320,
+          vx: (Math.random() - 0.5) * 1.5,
+          vy: (Math.random() - 0.5) * 0.8,
+          type: Math.random() > 0.5 ? 'CO2' : 'O2_ion',
+          size: 3 + Math.random() * 2
+        });
+      }
+    }
+
+    function renderMembraneCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width || 600;
+      const h = rect.height || 320;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Section Boundaries:
+      // Top 35%: Porous Cathode (Ni-YSZ cermet) with gas channels
+      // Middle 30%: Dense Solid Electrolyte (8YSZ Membrane)
+      // Bottom 35%: Porous Anode (LSCF Oxygen Electrode)
+      const cathodeH = h * 0.35;
+      const yszTop = cathodeH;
+      const yszH = h * 0.30;
+      const anodeTop = yszTop + yszH;
+      const anodeH = h * 0.35;
+
+      // 1. Draw Cathode Background (Dark Charcoal / Porous Nickel)
+      const cathodeGrad = ctx.createLinearGradient(0, 0, 0, cathodeH);
+      cathodeGrad.addColorStop(0, '#0a101d');
+      cathodeGrad.addColorStop(1, '#0e172a');
+      ctx.fillStyle = cathodeGrad;
+      ctx.fillRect(0, 0, w, cathodeH);
+
+      // 2. Draw YSZ Electrolyte Membrane (Zirconia Ceramic Glow)
+      const yszGrad = ctx.createLinearGradient(0, yszTop, 0, yszTop + yszH);
+      yszGrad.addColorStop(0, '#164e63'); // Cyan-teal ceramic base
+      yszGrad.addColorStop(0.5, '#083344');
+      yszGrad.addColorStop(1, '#164e63');
+      ctx.fillStyle = yszGrad;
+      ctx.fillRect(0, yszTop, w, yszH);
+
+      // Draw Ceramic Grain Boundaries in YSZ
+      ctx.strokeStyle = 'rgba(6, 182, 212, 0.25)';
+      ctx.lineWidth = 1;
+      for (let x = 30; x < w; x += 45) {
+        ctx.beginPath();
+        ctx.moveTo(x, yszTop);
+        ctx.lineTo(x + 15, yszTop + yszH * 0.5);
+        ctx.lineTo(x - 5, yszTop + yszH);
+        ctx.stroke();
+      }
+
+      // 3. Draw Anode Background (Deep Forest / Pure Oxygen Egress)
+      const anodeGrad = ctx.createLinearGradient(0, anodeTop, 0, h);
+      anodeGrad.addColorStop(0, '#062817');
+      anodeGrad.addColorStop(1, '#02130b');
+      ctx.fillStyle = anodeGrad;
+      ctx.fillRect(0, anodeTop, w, anodeH);
+
+      // 4. Render Carbon Soot Layer on Cathode/YSZ Boundary (The Problem)
+      if (simState.cokingSeverity > 0) {
+        const sootHeight = Math.min(yszH * 0.45, (simState.cokingSeverity / 100) * 28 + 2);
+        const sootGrad = ctx.createLinearGradient(0, yszTop - sootHeight, 0, yszTop);
+        sootGrad.addColorStop(0, 'rgba(20, 20, 20, 0.1)');
+        sootGrad.addColorStop(1, `rgba(15, 15, 15, ${Math.min(0.95, simState.cokingSeverity / 80)})`);
+        ctx.fillStyle = sootGrad;
+        ctx.fillRect(0, yszTop - sootHeight, w, sootHeight);
+
+        // Filamentous carbon dendrites
+        ctx.strokeStyle = `rgba(244, 63, 94, ${Math.min(0.8, simState.cokingSeverity / 60)})`;
+        ctx.lineWidth = 1.5;
+        for (let x = 15; x < w; x += 22) {
+          ctx.beginPath();
+          ctx.moveTo(x, yszTop);
+          const dendriteH = (Math.sin(x + simState.time * 0.1) * 0.5 + 0.5) * sootHeight * 1.3;
+          ctx.lineTo(x + (Math.cos(x) * 6), yszTop - dendriteH);
+          ctx.stroke();
+        }
+      }
+
+      // 5. Render Mechanical Micro-Cracks in YSZ Ceramic
+      if (simState.microcrackDamage > 0) {
+        ctx.strokeStyle = 'rgba(245, 158, 11, 0.85)';
+        ctx.lineWidth = 2;
+        const crackX = w * 0.45;
+        ctx.beginPath();
+        ctx.moveTo(crackX, yszTop);
+        ctx.lineTo(crackX - 12, yszTop + yszH * 0.35);
+        ctx.lineTo(crackX + 18, yszTop + yszH * 0.75);
+        ctx.lineTo(crackX - 4, yszTop + yszH);
+        ctx.stroke();
+
+        // Warning micro-glow
+        ctx.fillStyle = 'rgba(245, 158, 11, 0.15)';
+        ctx.beginPath();
+        ctx.arc(crackX, yszTop + yszH * 0.5, 25, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 6. Render Autonomous Oxidant Burn-off Pulse Wave
+      if (simState.isPulsing) {
+        const pulseAlpha = (simState.pulseTimer / 45);
+        ctx.fillStyle = `rgba(6, 182, 212, ${pulseAlpha * 0.35})`;
+        ctx.fillRect(0, yszTop - 25, w, 35);
+
+        // Burning embers / oxidation sparkles
+        ctx.fillStyle = `rgba(255, 255, 255, ${pulseAlpha})`;
+        for (let i = 0; i < 20; i++) {
+          const sparkX = (Math.sin(i * 37 + simState.time) * 0.5 + 0.5) * w;
+          const sparkY = yszTop - (Math.random() * 20);
+          ctx.fillRect(sparkX, sparkY, 2.5, 2.5);
+        }
+      }
+
+      // 7. Update & Draw Active Gas & Ionic Particles
+      particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+
+        // Bounce horizontally
+        if (p.x < 0) p.x = w;
+        if (p.x > w) p.x = 0;
+
+        // Cathode region particles (CO2 and CO)
+        if (p.type === 'CO2') {
+          if (p.y > yszTop) p.y = 10;
+          if (p.y < 5) p.vy = Math.abs(p.vy);
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.75)'; // Sky blue
+        } 
+        // YSZ Membrane passing Oxygen Ions O2-
+        else if (p.type === 'O2_ion') {
+          p.vy = 0.6 + (simState.current_A * 0.15); // Forced downwards by electrical field
+          if (p.y > anodeTop + anodeH - 10) {
+            p.y = yszTop - 5; // Re-inject from cathode TPB
+          }
+          ctx.fillStyle = p.y < yszTop ? 'rgba(56, 189, 248, 0.5)' : 
+                         (p.y > anodeTop ? 'rgba(52, 211, 153, 0.9)' : 'rgba(250, 204, 21, 0.8)');
+        }
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // 8. Layer Labels
+      ctx.font = '10px "JetBrains Mono"';
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.fillText("POROUS Ni-YSZ FUEL CATHODE (-)", 12, 22);
+      ctx.fillText("DENSE 8YSZ SOLID ELECTROLYTE (O2- TRANSFER)", 12, yszTop + 18);
+      ctx.fillText("POROUS LSCF OXYGEN ANODE (+)", 12, anodeTop + 22);
+    }
+
+    // CHART.JS INITIALIZATION & PHASE SPACE TELEMETRY
+    let phaseSpaceChart;
+    let resistanceTimeChart;
+    let overpotentialChart;
+
+    function initPhaseSpaceData() {
+      // Nominal corridor: baseline R stays flat with small thermodynamic drift
+      const nominalData = [];
+      const hazardData = [];
+      for (let q = 0; q <= 120; q += 5) {
+        const nominalR = 0.420 + (0.00018 * q);
+        nominalData.push({ x: q, y: nominalR });
+        hazardData.push({ x: q, y: nominalR + 0.150 }); // Danger threshold corridor
+      }
+      return { nominalData, hazardData };
+    }
+
+    function initCharts() {
+      const { nominalData, hazardData } = initPhaseSpaceData();
+
+      // 1. Phase Space Chart: (Q vs R)
+      const ctxPhase = document.getElementById('phaseSpaceChart').getContext('2d');
+      phaseSpaceChart = new Chart(ctxPhase, {
+        type: 'scatter',
+        data: {
+          datasets: [
+            {
+              label: 'Hazard Threshold Boundary (Coking Trap)',
+              data: hazardData,
+              showLine: true,
+              borderColor: 'rgba(239, 68, 68, 0.85)',
+              borderWidth: 1.5,
+              borderDash: [5, 4],
+              pointRadius: 0,
+              backgroundColor: 'rgba(239, 68, 68, 0.04)',
+              fill: true
+            },
+            {
+              label: 'Theoretical Nominal Baseline',
+              data: nominalData,
+              showLine: true,
+              borderColor: 'rgba(6, 182, 212, 0.6)',
+              borderWidth: 2,
+              pointRadius: 0
+            },
+            {
+              label: 'Live Dynamic SOEC Trajectory',
+              data: [{ x: 0, y: 0.420 }],
+              showLine: true,
+              borderColor: '#f59e0b',
+              borderWidth: 2.5,
+              pointBackgroundColor: '#38bdf8',
+              pointBorderColor: '#fff',
+              pointRadius: [0], // dynamic
+              pointHoverRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          scales: {
+            x: {
+              title: { display: true, text: 'Cumulative Charge Q (kC)', color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } },
+              grid: { color: 'rgba(51, 65, 85, 0.3)' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } },
+              min: 0,
+              max: 60
+            },
+            y: {
+              title: { display: true, text: 'Internal Resistance R (Ω)', color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } },
+              grid: { color: 'rgba(51, 65, 85, 0.3)' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } },
+              min: 0.36,
+              max: 0.72
+            }
+          },
+          plugins: {
+            legend: {
+              labels: { color: '#cbd5e1', font: { family: 'Inter', size: 10 }, boxWidth: 12 }
+            }
+          }
+        }
+      });
+
+      // 2. Rolling Time Series: Resistance vs Time
+      const ctxR = document.getElementById('resistanceTimeChart').getContext('2d');
+      resistanceTimeChart = new Chart(ctxR, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'R(t) [Ω]',
+            data: [],
+            borderColor: '#38bdf8',
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+            tension: 0.2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          scales: {
+            x: { display: false },
+            y: {
+              grid: { color: 'rgba(51, 65, 85, 0.3)' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } },
+              min: 0.38,
+              max: 0.70
+            }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+
+      // 3. Rolling Time Series: Overpotential
+      const ctxEta = document.getElementById('overpotentialChart').getContext('2d');
+      overpotentialChart = new Chart(ctxEta, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Overpotential η (V)',
+            data: [],
+            borderColor: '#34d399',
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+            tension: 0.2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          scales: {
+            x: { display: false },
+            y: {
+              grid: { color: 'rgba(51, 65, 85, 0.3)' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } },
+              min: 0.05,
+              max: 0.50
+            }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    // MAIN PHYSICS & OBSERVER SIMULATION STEP (Runs every 40ms)
+    let tickCounter = 0;
+    function simulationStep() {
+      simState.time += 0.04; // 40ms per step
+      tickCounter++;
+
+      // 1. Charge Accumulation: Q = integral(I dt)
+      const dQ = (simState.current_A * 0.04) / 1000.0; // in kilo-Coulombs
+      simState.totalCharge_kC += dQ;
+
+      // 2. Faradaic Oxygen Extraction: 4 Faradays per mole O2 (32g/mol)
+      // Yield = (I * dt / (4 * 96485)) * 32.0 grams
+      const dO2 = (simState.current_A * 0.04 / (4 * 96485.33)) * 31.998;
+      simState.o2Yield_g += dO2;
+      const hourlyO2Rate = (simState.current_A / (4 * 96485.33)) * 31.998 * 3600;
+
+      // 3. Arrhenius Baseline Resistance for YSZ
+      // Higher temp lowers ohmic resistance; Lower temp increases baseline
+      const tempK = simState.temperature_C + 273.15;
+      const arrheniusFactor = Math.exp((10500 / tempK) - (10500 / 1073.15));
+      simState.baselineR = 0.420 * arrheniusFactor;
+
+      // 4. Kinetic Coking Disproportionation
+      // Coking accelerates if temperature < 750C or under manual fault injection
+      if (simState.faultCokingActive) {
+        simState.cokingSeverity = Math.min(100, simState.cokingSeverity + 0.16);
+      } else if (simState.temperature_C < 750) {
+        const subCool = (750 - simState.temperature_C) / 100.0;
+        simState.cokingSeverity = Math.min(100, simState.cokingSeverity + (0.04 * subCool));
+      }
+
+      // Thickness correlation: 100% severity = ~45 nm soot blocking triple phase boundaries
+      simState.carbonThickness_nm = (simState.cokingSeverity / 100) * 45.0;
+
+      // 5. Inversion State: Non-Linear Ionic Resistance Shift
+      // Soot creates steep non-linear increase in R; cracks cause erratic stepping
+      const cokingDeltaR = 0.220 * Math.pow(simState.cokingSeverity / 100, 1.6);
+      const crackDeltaR = 0.140 * (simState.microcrackDamage / 100);
+      simState.actualR = simState.baselineR + cokingDeltaR + crackDeltaR;
+
+      // 6. Overpotential Calculation (Butler-Volmer approximation)
+      const etaActivation = 0.085 + (0.02 * (simState.current_A / 4.0));
+      const etaCoking = 0.25 * (simState.cokingSeverity / 100);
+      const totalEta = etaActivation + etaCoking;
+
+      // 7. Dynamic Curvature / Trajectory Anomaly Observer
+      const currentSlope = (simState.actualR - simState.baselineR) / (Math.max(0.1, simState.totalCharge_kC));
+      const isAnomalousTrajectory = (simState.actualR - simState.baselineR) > 0.065;
+
+      // 8. Autonomous Closed-Loop Sentinel Mitigation Logic
+      if (simState.autoMitigation && isAnomalousTrajectory && !simState.isPulsing) {
+        triggerPulse();
+      }
+
+      // Handle Active Pulse Dynamics (Chemical Soot Burn-Off)
+      if (simState.isPulsing) {
+        simState.pulseTimer--;
+        
+        // Rapid soot burn-off: C + O2 -> CO2
+        simState.cokingSeverity = Math.max(0, simState.cokingSeverity - 1.2);
+        if (simState.cokingSeverity < 1.0) {
+          simState.faultCokingActive = false;
+        }
+
+        if (simState.pulseTimer <= 0) {
+          simState.isPulsing = false;
+          pulseStatusBadge.innerText = "INJECTOR: IDLE";
+          pulseStatusBadge.className = "px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700";
+        }
+      }
+
+      // Microcrack gradual stress relief if temperature normalized
+      if (simState.microcrackDamage > 0 && !simState.faultCrackActive) {
+        simState.microcrackDamage = Math.max(0, simState.microcrackDamage - 0.02);
+      }
+
+      // Update Live UI Labels
+      hudCharge.innerText = `${simState.totalCharge_kC.toFixed(2)} kC`;
+      hudResistance.innerHTML = `${simState.actualR.toFixed(3)} $\\Omega$`;
+      
+      const deltaPercent = ((simState.actualR - simState.baselineR) / simState.baselineR) * 100;
+      hudDeltaR.innerText = `Baseline offset: ${deltaPercent >= 0 ? '+' : ''}${deltaPercent.toFixed(1)}%`;
+      
+      hudCoking.innerText = `${simState.cokingSeverity.toFixed(1)} %`;
+      hudCoking.className = `text-xl lg:text-2xl font-bold font-mono-code ${simState.cokingSeverity > 35 ? 'text-rose-400' : (simState.cokingSeverity > 15 ? 'text-amber-400' : 'text-emerald-400')}`;
+      hudCokingState.innerText = `Soot Thickness: ${simState.carbonThickness_nm.toFixed(1)} nm`;
+
+      hudO2Rate.innerText = `${hourlyO2Rate.toFixed(2)} g/hr`;
+      hudO2Total.innerText = `Total Yield: ${simState.o2Yield_g.toFixed(2)} g O2`;
+
+      tsRVal.innerText = `${simState.actualR.toFixed(3)} Ω`;
+      tsEtaVal.innerText = `${totalEta.toFixed(3)} V`;
+
+      hudSlope.innerText = `${currentSlope >= 0 ? '+' : ''}${currentSlope.toFixed(5)} Ω/kC (${isAnomalousTrajectory ? 'ANOMALOUS COKING' : 'NOMINAL'})`;
+      hudSlope.className = isAnomalousTrajectory ? 'text-rose-400 font-bold' : 'text-cyan-400 font-semibold';
+
+      // Status Badges & Alerts
+      if (simState.cokingSeverity > 25) {
+        cokingAlertBanner.classList.remove('hidden');
+        quickHealthBadge.className = "text-rose-400 font-semibold flex items-center gap-1";
+        quickHealthBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span> COKING HAZARD`;
+      } else if (simState.microcrackDamage > 30) {
+        cokingAlertBanner.classList.add('hidden');
+        quickHealthBadge.className = "text-amber-400 font-semibold flex items-center gap-1";
+        quickHealthBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> STRAIN WARNING`;
+      } else {
+        cokingAlertBanner.classList.add('hidden');
+        quickHealthBadge.className = "text-emerald-400 font-semibold flex items-center gap-1";
+        quickHealthBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> NOMINAL`;
+      }
+
+      if (simState.microcrackDamage > 40) {
+        membraneStressBadge.className = "px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-600 font-bold animate-pulse";
+        membraneStressBadge.innerText = "YSZ STRESS: CRACK DETECTED";
+      } else {
+        membraneStressBadge.className = "px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/50";
+        membraneStressBadge.innerText = "YSZ STRESS: NOMINAL";
+      }
+
+      // Gas Composition in Cathode
+      const coPercent = Math.min(65, 5.0 + (simState.current_A * 2.8) - (simState.cokingSeverity * 0.15));
+      const co2Percent = 100 - coPercent;
+      cathodeGasRatio.innerText = `${co2Percent.toFixed(1)}% CO2 / ${coPercent.toFixed(1)}% CO`;
+
+      // Membrane Strain calculation
+      const strainMicro = 120 + (simState.temperature_C - 800) * 0.8 + (simState.microcrackDamage * 12.0);
+      membraneStrain.innerText = `ε = ${(strainMicro / 10000).toFixed(4)}%`;
+
+      // Draw Membrane Physical Microstructure Canvas
+      renderMembraneCanvas();
+
+      // Throttled Chart Updates (every 3 ticks = 120ms to conserve GPU)
+      if (tickCounter % 3 === 0) {
+        updateChartTelemetry(totalEta);
+      }
+    }
+
+    // UPDATE TELEMETRY PLOTS
+    function updateChartTelemetry(totalEta) {
+      if (!phaseSpaceChart || !resistanceTimeChart || !overpotentialChart) return;
+
+      // 1. Phase Space Trajectory (Q, R)
+      const currentPoint = {
+        x: parseFloat(simState.totalCharge_kC.toFixed(2)),
+        y: parseFloat(simState.actualR.toFixed(3))
+      };
+
+      // Keep recent 80 trajectory points
+      simState.phasePoints.push(currentPoint);
+      if (simState.phasePoints.length > 90) {
+        simState.phasePoints.shift();
+      }
+
+      phaseSpaceChart.data.datasets[2].data = [...simState.phasePoints];
+      
+      // Expand x-scale if charge exceeds 60 kC
+      if (simState.totalCharge_kC > phaseSpaceChart.options.scales.x.max - 5) {
+        phaseSpaceChart.options.scales.x.max = Math.ceil(simState.totalCharge_kC + 20);
+      }
+      phaseSpaceChart.update('none');
+
+      // 2. Rolling Time Series
+      const history = simState.timeSeriesHistory;
+      history.timestamps.push(simState.time.toFixed(1));
+      history.resistance.push(simState.actualR);
+      history.overpotential.push(totalEta);
+
+      if (history.timestamps.length > 40) {
+        history.timestamps.shift();
+        history.resistance.shift();
+        history.overpotential.shift();
+      }
+
+      resistanceTimeChart.data.labels = history.timestamps;
+      resistanceTimeChart.data.datasets[0].data = history.resistance;
+      resistanceTimeChart.update('none');
+
+      overpotentialChart.data.labels = history.timestamps;
+      overpotentialChart.data.datasets[0].data = history.overpotential;
+      overpotentialChart.update('none');
+    }
+
+    // INITIALIZATION ON WINDOW LOAD
+    window.onload = function() {
+      // 1. Initialize Lucide Icons
+      lucide.createIcons();
+
+      // 2. Initialize Canvas & Particles
+      resizeCanvas();
+      initParticles();
+
+      // 3. Initialize Charts
+      initCharts();
+
+      // 4. Start Physics & Telemetry Engine Loop (25 FPS)
+      setInterval(simulationStep, 40);
+
+      // 5. Typeset formulas once on start
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise().catch(err => console.debug(err));
+      }
+    };
+  </script>
+</body>
+</html>
